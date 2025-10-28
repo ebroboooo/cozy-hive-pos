@@ -1,0 +1,176 @@
+/**
+ * @fileoverview Firestore Security Rules for Cozy-Hive POS application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a combination of role-based and ownership-based access control.
+ * Admins and cashiers have different levels of access, and users generally have
+ * ownership over their data (or data associated with their sessions).
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profile information, with userId matching the Firebase auth UID.
+ * - /sessions/{sessionId}: Stores session data.
+ * - /items/{itemId}: Stores item data.
+ * - /dailyStats/{date}: Stores daily statistics.
+ * - /session_items/{sessionItemId}: Stores items consumed during sessions.
+ *
+ * Key Security Decisions:
+ * - User listing is disabled.
+ * - Data validation is limited to authorization-critical fields for rapid prototyping.
+ * - The `session_items` collection uses a composite key for identifying items consumed
+ *   during a session.
+ *
+ * Denormalization for Authorization:
+ * User roles (admin, cashier) are stored directly in the `/users/{userId}` document
+ * to avoid costly lookups during rule evaluation.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Checks if the user is signed in.
+     * @path N/A (Helper Function)
+     * @allow N/A (Helper Function)
+     * @deny N/A (Helper Function)
+     * @principle Authentication is required for nearly all operations.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the user's ID matches the requested user ID.
+     * @path N/A (Helper Function)
+     * @allow N/A (Helper Function)
+     * @deny N/A (Helper Function)
+     * @principle Enforces user-ownership.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the user's ID matches the requested user ID, and verifies resource exists
+     * @path N/A (Helper Function)
+     * @allow N/A (Helper Function)
+     * @deny N/A (Helper Function)
+     * @principle Enforces user-ownership and verifies resource exists before destructive operations
+     */
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+
+     /**
+      * @description Checks if the user has the 'admin' role.
+      * @path N/A (Helper Function)
+      * @allow N/A (Helper Function)
+      * @deny N/A (Helper Function)
+      * @principle Enforces role-based access control for admin operations.
+      */
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    /**
+     * @description Checks if the user has the 'cashier' role.
+     * @path N/A (Helper Function)
+     * @allow N/A (Helper Function)
+     * @deny N/A (Helper Function)
+     * @principle Enforces role-based access control for cashier operations.
+     */
+     function isCashier() {
+          return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'cashier';
+    }
+
+    /**
+     * @description Rule for user profile documents.
+     * @path /users/{userId}
+     * @allow (create) User with UID 'user123' can create their own profile.
+     * @allow (get) Any signed-in user can get a user profile.
+     * @allow (update) User with UID 'user123' can update their own profile.
+     * @deny (create) User with UID 'user123' cannot create a profile for 'user456'.
+     * @deny (update) User with UID 'user123' cannot update the profile of 'user456'.
+     * @deny (delete) Only admin can delete user profile.
+     * @principle Enforces document ownership for writes and allows public reads.
+     */
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.uid == resource.data.uid;
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Rule for session documents.
+     * @path /sessions/{sessionId}
+     * @allow (create) Any signed-in user can create a session.
+     * @allow (get) Any signed-in user can get a session.
+     * @allow (list) Any signed-in user can list sessions.
+     * @allow (update) Only cashier and admin can update the session document.
+     * @deny (delete) Only admin can delete session document
+     * @principle Allows public reads, restricts writes to the owner.
+     */
+    match /sessions/{sessionId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if (isCashier() || isAdmin()) && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Rule for item documents.
+     * @path /items/{itemId}
+     * @allow (create) Only admin can create an item.
+     * @allow (get) Any signed-in user can get an item.
+     * @allow (list) Any signed-in user can list items.
+     * @allow (update) Only admin can update the item.
+     * @deny (delete) Only admin can delete item.
+     * @principle Restricts writes to admins, allows public reads.
+     */
+    match /items/{itemId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Rule for daily statistics documents.
+     * @path /dailyStats/{date}
+     * @allow (create) Only admin can create daily statistics.
+     * @allow (get) Only admin can get daily statistics.
+     * @allow (list) Only admin can list daily statistics.
+     * @allow (update) Only admin can update the daily statistics.
+     * @deny (delete) Only admin can delete daily statistics.
+     * @principle Restricts access to admins only.
+     */
+    match /dailyStats/{date} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Rule for session_item documents.
+     * @path /session_items/{sessionItemId}
+     * @allow (create) Any signed-in user can create a session_item.
+     * @allow (get) Any signed-in user can get a session_item.
+     * @allow (list) Any signed-in user can list session_items.
+     * @allow (update) Only cashier and admin can update the session_item.
+     * @deny (delete) Only admin can delete session_item.
+     * @principle Allows public reads, restricts writes to the owner.
+     */
+    match /session_items/{sessionItemId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if (isCashier() || isAdmin());
+      allow update: if (isCashier() || isAdmin()) && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+  }
+}

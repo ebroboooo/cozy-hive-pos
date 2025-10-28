@@ -1,0 +1,259 @@
+
+{
+  "entities": {
+    "Session": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Session",
+      "type": "object",
+      "description": "Represents a co-working session for a customer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Session entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the customer."
+        },
+        "entryTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the customer entered.",
+          "format": "date-time"
+        },
+        "exitTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the customer exited.",
+          "format": "date-time"
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Indicates if the session is currently active."
+        },
+        "items": {
+          "type": "array",
+          "description": "List of items consumed during the session.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "totalTime": {
+          "type": "number",
+          "description": "Total time spent in the co-working space (in hours)."
+        },
+        "totalCost": {
+          "type": "number",
+          "description": "Total cost for the session."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "entryTime",
+        "active",
+        "items",
+        "totalTime",
+        "totalCost"
+      ]
+    },
+    "Item": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Item",
+      "type": "object",
+      "description": "Represents an item that can be purchased.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Item entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the item."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the item."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "price"
+      ]
+    },
+    "DailyStats": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DailyStats",
+      "type": "object",
+      "description": "Represents daily statistics for the co-working space.",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date for which the statistics are recorded.",
+          "format": "date-time"
+        },
+        "totalIncome": {
+          "type": "number",
+          "description": "Total income for the day."
+        },
+        "sessionsCount": {
+          "type": "number",
+          "description": "Number of sessions completed on that day."
+        }
+      },
+      "required": [
+        "date",
+        "totalIncome",
+        "sessionsCount"
+      ]
+    },
+    "SessionItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SessionItem",
+      "type": "object",
+      "description": "Represents an item and it's quantity for a specific session",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the SessionItem entity."
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Reference to Session. (Relationship: Session 1:N SessionItem)"
+        },
+        "itemId": {
+          "type": "string",
+          "description": "Reference to Item. (Relationship: Item 1:N SessionItem)"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Quantity of the item for this session."
+        }
+      },
+      "required": [
+        "id",
+        "sessionId",
+        "itemId",
+        "quantity"
+      ]
+    },
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User Profile",
+      "description": "Represents a user's profile information.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The user's unique ID from Firebase Authentication."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the user profile was created."
+        },
+        "role": {
+            "type": "string",
+            "description": "The role of the user.",
+            "enum": ["admin", "cashier"]
+        }
+      },
+      "required": ["uid", "email", "createdAt", "role"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores public-facing user profile information. The document ID must match the user's authentication UID.",
+           "params": [
+            {
+              "name": "userId",
+              "description": "The user's authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/sessions/{sessionId}",
+        "definition": {
+          "entityName": "Session",
+          "schema": {
+            "$ref": "#/backend/entities/Session"
+          },
+          "description": "Stores session data. Includes session ID as document ID.",
+          "params": [
+            {
+              "name": "sessionId",
+              "description": "Unique identifier for the session."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/items/{itemId}",
+        "definition": {
+          "entityName": "Item",
+          "schema": {
+            "$ref": "#/backend/entities/Item"
+          },
+          "description": "Stores item data. Includes item ID as document ID.",
+          "params": [
+            {
+              "name": "itemId",
+              "description": "Unique identifier for the item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/dailyStats/{date}",
+        "definition": {
+          "entityName": "DailyStats",
+          "schema": {
+            "$ref": "#/backend/entities/DailyStats"
+          },
+          "description": "Stores daily statistics with the date as the document ID.",
+          "params": [
+            {
+              "name": "date",
+              "description": "The date for which the statistics are recorded."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/session_items/{sessionItemId}",
+        "definition": {
+          "entityName": "SessionItem",
+          "schema": {
+            "$ref": "#/backend/entities/SessionItem"
+          },
+          "description": "Stores the items and their quantity for a specific session. The {sessionItemId} is a composite key containing both sessionId and itemId separated by an underscore.",
+          "params": [
+            {
+              "name": "sessionItemId",
+              "description": "Unique identifier for the SessionItem entity. Composed of sessionId and itemId."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support the \"Cozy-Hive POS\" application, focusing on real-time tracking of customers, items, and daily statistics. Authorization independence is achieved through path-based ownership where applicable. The structure supports Queryability and Protection (QAPs) by segregating data into collections based on their access requirements and using appropriate indexing where needed.\n\nSpecifically:\n\n*   `/sessions/{sessionId}`: Stores session data. This collection is designed for frequent reads and writes due to the real-time tracking requirements.\n*   `/items/{itemId}`: Stores item data, which is primarily managed by the admin.\n*   `/dailyStats/{date}`: Stores daily statistics, which are generated daily.\n*   `/session_items/{sessionItemId}`: Stores the items consumed during a specific session. sessionItemId is a composite key that stores both itemId and SessionId separated by an underscore. This is to ensure the uniqueness of the key"
+  }
+}

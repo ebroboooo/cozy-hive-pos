@@ -1,0 +1,49 @@
+
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Next.js build output
+/.next/
+/out/
+
+# PWA output
+/public/pwa
+
+# Other build outputs
+/build
+/dist
+
+# Miscellaneous
+.DS_Store
+*.pem
+*.log
+*.zip
+*.lock
+
+# Environment variables
+.env
+.env*.local
+
+# Editor directories and files
+.vscode*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+
+# Project IDX
+.idx
+
+# Dumps
+/heapdump*
+/npm-debug.log*
+/yarn-debug.log*
+/yarn-error.log*
+/pnpm-debug.log*
+/lerna-debug.log*
